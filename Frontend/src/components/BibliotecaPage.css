@@ -375,6 +375,51 @@ tbody tr:last-child td {
   font-size: 0.9rem;
 }
 
+.acciones-copia {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.biblioteca-page .boton-papelera-copia {
+  min-height: 2.35rem;
+  border-color: #8a2c20;
+  color: #8a2c20;
+}
+
+.biblioteca-page .boton-papelera-copia:hover:not(:disabled) {
+  border-color: #8a2c20;
+  color: #fff;
+  background: #8a2c20;
+}
+
+.lista-copias .eliminar-todas-copias {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+  border: 2px solid #8a2c20;
+  background: #fef3f2;
+}
+
+.eliminar-todas-copias p {
+  margin-top: 0.35rem;
+  color: #7a271a;
+}
+
+.biblioteca-page .boton-papelera-todas,
+.biblioteca-page .boton-papelera-confirmar {
+  border-color: #8a2c20;
+  background: #8a2c20;
+}
+
+.biblioteca-page .boton-papelera-todas:hover:not(:disabled),
+.biblioteca-page .boton-papelera-confirmar:hover:not(:disabled) {
+  border-color: #681f17;
+  background: #681f17;
+}
+
 .error-detalle {
   color: #8a2c20;
   font-weight: 700;
@@ -439,6 +484,86 @@ tbody tr:last-child td {
 
 .dialogo-biblioteca > p {
   line-height: 1.55;
+}
+
+.dialogo-eliminacion,
+.resultado-eliminacion-dialogo {
+  width: min(100%, 50rem);
+}
+
+.datos-eliminacion {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.datos-eliminacion div {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #d5dbe3;
+  border-radius: 0.3rem;
+}
+
+.datos-eliminacion dt,
+.datos-eliminacion dd {
+  margin: 0;
+}
+
+.datos-eliminacion dt {
+  font-weight: 700;
+}
+
+.datos-eliminacion dd {
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.aviso-eliminacion,
+.aviso-eliminacion-importante {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-left: 4px solid #a16207;
+  background: #fffbeb;
+  line-height: 1.5;
+}
+
+.aviso-eliminacion-importante {
+  border: 2px solid #8a2c20;
+  color: #7a271a;
+  background: #fef3f2;
+  font-weight: 700;
+}
+
+.lista-resumida-copias {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.35rem;
+  background: #f8fafc;
+}
+
+.lista-resumida-copias ul {
+  max-height: 10rem;
+  margin: 0.6rem 0 0;
+  overflow-y: auto;
+}
+
+.dialogo-eliminacion .mensaje-error {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.archivos-enviados-papelera li {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.archivos-enviados-papelera span {
+  overflow-wrap: anywhere;
+  color: #334155;
+  user-select: text;
 }
 
 .rutas-cambio {
@@ -756,11 +881,17 @@ tbody tr:last-child td {
 
   .fila-autor,
   .datos-libro-actualizado div,
+  .datos-eliminacion div,
   .archivos-renombrados dl div {
     grid-template-columns: 1fr;
   }
 
   .fila-autor button {
     width: 100%;
+  }
+
+  .lista-copias .eliminar-todas-copias {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

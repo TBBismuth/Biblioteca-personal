@@ -12,7 +12,9 @@ function TablaLibros({
   onCambiarEstado,
   onAlternarCopias,
   onEditar,
-  edicionBloqueada,
+  accionesBloqueadas,
+  onEliminarCopia,
+  onEliminarTodas,
 }) {
   return (
     <div className="tabla-contenedor">
@@ -49,6 +51,7 @@ function TablaLibros({
                     libro={libro}
                     abierto={menuEstadoId === libro.id}
                     guardando={guardandoId === libro.id}
+                    bloqueado={accionesBloqueadas}
                     onAbrir={() => onAbrirEstado(libro.id)}
                     onCerrar={onCerrarEstado}
                     onSeleccionar={(leido) => onCambiarEstado(libro, leido)}
@@ -60,6 +63,7 @@ function TablaLibros({
                     className="boton-tabla"
                     aria-expanded={detalle?.id === libro.id}
                     onClick={() => onAlternarCopias(libro.id)}
+                    disabled={accionesBloqueadas}
                   >
                     {detalle?.id === libro.id ? 'Ocultar copias' : 'Ver copias'}
                   </button>
@@ -69,7 +73,7 @@ function TablaLibros({
                     type="button"
                     className="boton-tabla boton-editar"
                     onClick={() => onEditar(libro)}
-                    disabled={edicionBloqueada}
+                    disabled={accionesBloqueadas}
                   >
                     Editar
                   </button>
@@ -77,7 +81,15 @@ function TablaLibros({
               </tr>
               {detalle?.id === libro.id && (
                 <tr className="fila-detalle">
-                  <td colSpan="7"><DetalleCopias detalle={detalle} /></td>
+                  <td colSpan="7">
+                    <DetalleCopias
+                      detalle={detalle}
+                      libro={libro}
+                      accionesBloqueadas={accionesBloqueadas}
+                      onEliminarCopia={onEliminarCopia}
+                      onEliminarTodas={onEliminarTodas}
+                    />
+                  </td>
                 </tr>
               )}
             </Fragment>

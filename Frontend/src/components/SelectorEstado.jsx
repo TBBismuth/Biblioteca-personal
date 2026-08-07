@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-function SelectorEstado({ libro, abierto, guardando, onAbrir, onSeleccionar, onCerrar }) {
+function SelectorEstado({ libro, abierto, guardando, bloqueado, onAbrir, onSeleccionar, onCerrar }) {
   const contenedorRef = useRef(null)
 
   useEffect(() => {
@@ -28,7 +28,7 @@ function SelectorEstado({ libro, abierto, guardando, onAbrir, onSeleccionar, onC
         className={`boton-estado ${libro.leido ? 'estado-leido' : 'estado-pendiente'}`}
         aria-expanded={abierto}
         aria-haspopup="menu"
-        disabled={guardando}
+        disabled={guardando || bloqueado}
         onClick={onAbrir}
       >
         {guardando ? 'Guardando...' : libro.leido ? 'Leído' : 'Pendiente'}

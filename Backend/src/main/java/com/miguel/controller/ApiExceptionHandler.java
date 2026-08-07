@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.miguel.dto.ApiErrorResponse;
+import com.miguel.dto.ErrorEliminacionResponse;
+import com.miguel.exception.EliminacionParcialException;
 import com.miguel.exception.RecursoNoEncontradoException;
 import com.miguel.exception.ConflictoOperacionException;
 import com.miguel.exception.OperacionArchivosException;
@@ -37,6 +39,16 @@ public class ApiExceptionHandler {
 	public ResponseEntity<ApiErrorResponse> manejarErrorDeArchivos(OperacionArchivosException error) {
 		LOGGER.error("Falló la operación coordinada de renombrado", error);
 		return respuesta(HttpStatus.INTERNAL_SERVER_ERROR, error.getMessage());
+	}
+
+	@ExceptionHandler(EliminacionParcialException.class)
+	public ResponseEntity<ErrorEliminacionResponse> manejarEliminacionParcial(
+			EliminacionParcialException error) {
+		LOGGER.error("Falló el envío coordinado a la Papelera", error);
+		HttpStatus estado = HttpStatus.INTERNAL_SERVER_ERROR;
+		return ResponseEntity.status(estado).body(new ErrorEliminacionResponse(
+				estado.value(), estado.getReasonPhrase(), error.getMessage(),
+				error.getResultadoParcial()));
 	}
 
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)

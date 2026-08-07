@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   cambiarEstadoLectura,
+  eliminarCopiaLibro,
+  eliminarTodasCopiasLibro,
   escanearBiblioteca,
   guardarRuta,
   obtenerConfiguracion,
@@ -11,12 +13,14 @@ import {
 import { seleccionarCarpetaLibros } from '../services/selectorCarpeta.js'
 import AccionesBiblioteca from './AccionesBiblioteca.jsx'
 import ConfirmacionCambioCarpeta from './ConfirmacionCambioCarpeta.jsx'
+import ConfirmacionEliminacion from './ConfirmacionEliminacion.jsx'
 import ControlesBiblioteca from './ControlesBiblioteca.jsx'
 import EditarLibroDialogo from './EditarLibroDialogo.jsx'
 import Paginacion from './Paginacion.jsx'
 import ResumenBiblioteca from './ResumenBiblioteca.jsx'
 import ResumenEscaneo from './ResumenEscaneo.jsx'
 import ResultadoRenombrado from './ResultadoRenombrado.jsx'
+import ResultadoEliminacion from './ResultadoEliminacion.jsx'
 import TablaLibros from './TablaLibros.jsx'
 import './BibliotecaPage.css'
 
@@ -51,6 +55,10 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
   const [libroEnEdicion, setLibroEnEdicion] = useState(null)
   const [guardandoEdicion, setGuardandoEdicion] = useState(false)
   const [resultadoRenombrado, setResultadoRenombrado] = useState(null)
+  const [confirmacionEliminacion, setConfirmacionEliminacion] = useState(null)
+  const [eliminando, setEliminando] = useState(false)
+  const [errorEliminacion, setErrorEliminacion] = useState(null)
+  const [resultadoEliminacion, setResultadoEliminacion] = useState(null)
   const datosRef = useRef(null)
   const solicitudListaRef = useRef(0)
   const solicitudCopiasRef = useRef(0)
@@ -218,7 +226,7 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
   }
 
   const abrirEdicion = (libro) => {
-    if (libroEnEdicion || guardandoEdicion || operacionBiblioteca) return
+    if (libroEnEdicion || guardandoEdicion || operacionBiblioteca || eliminando) return
     cerrarControlesAbiertos()
     setErrorOperacion('')
     setLibroEnEdicion(libro)
@@ -230,6 +238,146 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
     cerrarControlesAbiertos()
     setResultadoRenombrado(resultado)
     setRecargaLista((valor) => valor + 1)
+  }
+
+  const refrescarTrasEliminacion = async (resultado, recargarDetalle) => {
+    solicitudListaRef.current += 1
+    const numeroCopias = ++solicitudCopiasRef.current
+    setCargandoLista(true)
+    const parametros = {
+      busqueda: busquedaAplicada,
+      estado,
+      pagina,
+      tamano: TAMANO_PAGINA,
+    }
+    const promesas = [obtenerResumenBiblioteca(), obtenerLibros(parametros)]
+    if (recargarDetalle && resultado.libroDisponible) {
+      promesas.push(obtenerCopiasLibro(resultado.libroId))
+    }
+
+    const [resumenResultado, listaResultado, copiasResultado] = await Promise.allSettled(promesas)
+    if (resumenResultado.status === 'fulfilled') setResumen(resumenResultado.value)
+
+    if (listaResultado.status === 'fulfilled') {
+      let listaActualizada = listaResultado.value
+      const ultimaPagina = Math.max(0, listaActualizada.totalPaginas - 1)
+      if (pagina > ultimaPagina && listaActualizada.totalPaginas > 0) {
+        try {
+          listaActualizada = await obtenerLibros({ ...parametros, pagina: ultimaPagina })
+        } catch {
+          setErrorOperacion(
+            'La eliminación se aplicó, pero no se pudo cargar la última página disponible.',
+          )
+        }
+      }
+      setPagina(ultimaPagina < pagina ? ultimaPagina : pagina)
+      setDatos(listaActualizada)
+      setErrorLista('')
+    }
+
+    if (!resultado.libroDisponible) {
+      setDetalle(null)
+    } else if (recargarDetalle && numeroCopias === solicitudCopiasRef.current) {
+      if (copiasResultado?.status === 'fulfilled') {
+        setDetalle({
+          id: resultado.libroId,
+          cargando: false,
+          error: '',
+          copias: copiasResultado.value,
+        })
+      } else {
+        setDetalle({
+          id: resultado.libroId,
+          cargando: false,
+          copias: [],
+          error: 'No se pudieron volver a cargar las copias de este libro.',
+        })
+      }
+    }
+
+    if (resumenResultado.status === 'rejected' || listaResultado.status === 'rejected') {
+      setErrorOperacion(
+        'La eliminación se aplicó, pero no se pudieron refrescar todos los datos. Puedes volver a intentarlo.',
+      )
+    }
+    setCargandoLista(false)
+  }
+
+  const abrirEliminacionCopia = (libro, copia) => {
+    if (eliminando || operacionBiblioteca || guardandoEdicion || libroEnEdicion) return
+    setMenuEstadoId(null)
+    setErrorOperacion('')
+    setErrorEliminacion(null)
+    setConfirmacionEliminacion({ tipo: 'copia', libro, copia })
+  }
+
+  const abrirEliminacionTodas = (libro, copias) => {
+    if (eliminando || operacionBiblioteca || guardandoEdicion || libroEnEdicion) return
+    setMenuEstadoId(null)
+    setErrorOperacion('')
+    setErrorEliminacion(null)
+    setConfirmacionEliminacion({ tipo: 'todas', libro, copias })
+  }
+
+  const describirErrorEliminacion = (error, tipo) => {
+    const mensajeBackend = error?.message?.trim()
+    const conexion = mensajeBackend?.startsWith('No se puede contactar')
+    const titulo = conexion
+      ? mensajeBackend
+      : tipo === 'todas'
+        ? 'No se pudieron enviar las copias a la Papelera.'
+        : 'No se pudo enviar el archivo a la Papelera.'
+    const detalleSeguro = !conexion && mensajeBackend && !mensajeBackend.includes('interno inesperado')
+      ? mensajeBackend
+      : ''
+    const textoCambioExterno = `${mensajeBackend || ''}`.toLocaleLowerCase('es')
+    const recomendarActualizacion = error?.status === 409
+      && !textoCambioExterno.includes('actualiza la biblioteca')
+      && ['no se encuentra', 'ubicación', 'estado físico', 'sincronizar']
+        .some((fragmento) => textoCambioExterno.includes(fragmento))
+    return { titulo, detalle: detalleSeguro, recomendarActualizacion }
+  }
+
+  const confirmarEliminacion = async () => {
+    if (!confirmacionEliminacion || eliminando) return
+    const actual = confirmacionEliminacion
+    setEliminando(true)
+    setErrorEliminacion(null)
+    setErrorOperacion('')
+
+    try {
+      const respuesta = actual.tipo === 'todas'
+        ? await eliminarTodasCopiasLibro(actual.libro.id)
+        : await eliminarCopiaLibro(actual.libro.id, actual.copia.id)
+      setConfirmacionEliminacion(null)
+      await refrescarTrasEliminacion(
+        respuesta,
+        actual.tipo === 'copia' && respuesta.libroDisponible,
+      )
+      setResultadoEliminacion({ tipo: actual.tipo, datos: respuesta, parcial: false })
+    } catch (error) {
+      const copiasConfirmadas = error?.resultadoParcial?.copiasEliminadas
+      const falloRealmenteParcial = actual.tipo === 'todas'
+        && Array.isArray(copiasConfirmadas)
+        && copiasConfirmadas.length > 0
+      if (falloRealmenteParcial) {
+        setConfirmacionEliminacion(null)
+        await refrescarTrasEliminacion(
+          error.resultadoParcial,
+          error.resultadoParcial.libroDisponible,
+        )
+        setResultadoEliminacion({
+          tipo: actual.tipo,
+          datos: error.resultadoParcial,
+          parcial: true,
+          mensaje: error.message,
+        })
+      } else {
+        setErrorEliminacion(describirErrorEliminacion(error, actual.tipo))
+      }
+    } finally {
+      setEliminando(false)
+    }
   }
 
   const recargarDespuesDeEscaneo = async (paginaSolicitada) => {
@@ -295,7 +443,7 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
   }
 
   const actualizarBiblioteca = async () => {
-    if (operacionBiblioteca) return
+    if (operacionBiblioteca || eliminando) return
     cerrarControlesAbiertos()
     setOperacionBiblioteca('actualizando')
     setErrorOperacion('')
@@ -332,7 +480,7 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
   }
 
   const elegirNuevaCarpeta = async () => {
-    if (operacionBiblioteca) return
+    if (operacionBiblioteca || eliminando) return
     cerrarControlesAbiertos()
     setErrorOperacion('')
     setAvisoAccion('')
@@ -419,14 +567,14 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
     <main
       className="biblioteca-page"
       ref={contenidoRef}
-      aria-busy={Boolean(operacionBiblioteca) || guardandoEdicion}
+      aria-busy={Boolean(operacionBiblioteca) || guardandoEdicion || eliminando}
     >
       <header className="cabecera-biblioteca">
         <div className="identidad-biblioteca">
           <h1>Biblioteca personal</h1>
           <p className="ruta-principal" title={rutaLibros}>{rutaLibros}</p>
           <AccionesBiblioteca
-            ocupada={Boolean(operacionBiblioteca) || guardandoEdicion}
+            ocupada={Boolean(operacionBiblioteca) || guardandoEdicion || eliminando}
             onActualizar={actualizarBiblioteca}
             onCambiarCarpeta={elegirNuevaCarpeta}
           />
@@ -486,7 +634,12 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
               onCambiarEstado={guardarEstado}
               onAlternarCopias={alternarCopias}
               onEditar={abrirEdicion}
-              edicionBloqueada={Boolean(libroEnEdicion) || guardandoEdicion || Boolean(operacionBiblioteca)}
+              accionesBloqueadas={Boolean(libroEnEdicion)
+                || guardandoEdicion
+                || Boolean(operacionBiblioteca)
+                || eliminando}
+              onEliminarCopia={abrirEliminacionCopia}
+              onEliminarTodas={abrirEliminacionTodas}
             />
             <Paginacion datos={datos} onPagina={cambiarPagina} />
           </>
@@ -526,6 +679,28 @@ function BibliotecaPage({ rutaLibros, onConfiguracionActualizada }) {
         <ResultadoRenombrado
           resultado={resultadoRenombrado}
           onCerrar={() => setResultadoRenombrado(null)}
+        />
+      )}
+
+      {confirmacionEliminacion && (
+        <ConfirmacionEliminacion
+          confirmacion={confirmacionEliminacion}
+          ocupada={eliminando}
+          error={errorEliminacion}
+          onCancelar={() => {
+            if (!eliminando) {
+              setConfirmacionEliminacion(null)
+              setErrorEliminacion(null)
+            }
+          }}
+          onConfirmar={confirmarEliminacion}
+        />
+      )}
+
+      {resultadoEliminacion && (
+        <ResultadoEliminacion
+          resultado={resultadoEliminacion}
+          onCerrar={() => setResultadoEliminacion(null)}
         />
       )}
     </main>

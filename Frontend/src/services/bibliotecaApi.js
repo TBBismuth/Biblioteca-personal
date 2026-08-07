@@ -11,16 +11,21 @@ async function solicitar(ruta, opciones) {
 
   if (!respuesta.ok) {
     let detalle = ''
+    let resultadoParcial = null
 
     try {
       const cuerpo = await respuesta.json()
       detalle = typeof cuerpo.message === 'string' ? cuerpo.message : ''
+      resultadoParcial = cuerpo.resultadoParcial && typeof cuerpo.resultadoParcial === 'object'
+        ? cuerpo.resultadoParcial
+        : null
     } catch {
       // El backend puede responder sin un cuerpo JSON.
     }
 
     const error = new Error(detalle)
     error.status = respuesta.status
+    error.resultadoParcial = resultadoParcial
     throw error
   }
 
@@ -95,5 +100,17 @@ export function actualizarLibro(id, datos) {
       titulo: datos.titulo,
       autores: datos.autores,
     }),
+  })
+}
+
+export function eliminarCopiaLibro(idLibro, idArchivo) {
+  return solicitar(`/libros/${idLibro}/copias/${idArchivo}`, {
+    method: 'DELETE',
+  })
+}
+
+export function eliminarTodasCopiasLibro(idLibro) {
+  return solicitar(`/libros/${idLibro}/copias`, {
+    method: 'DELETE',
   })
 }

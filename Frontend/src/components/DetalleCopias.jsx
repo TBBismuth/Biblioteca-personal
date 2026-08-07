@@ -24,7 +24,7 @@ function formatearFecha(fecha) {
   }).format(valor)
 }
 
-function DetalleCopias({ detalle }) {
+function DetalleCopias({ detalle, libro, accionesBloqueadas, onEliminarCopia, onEliminarTodas }) {
   if (detalle.cargando) return <p role="status">Cargando copias...</p>
   if (detalle.error) return <p className="error-detalle" role="alert">{detalle.error}</p>
   if (!detalle.copias.length) return <p>No hay copias físicas registradas para este libro.</p>
@@ -41,8 +41,32 @@ function DetalleCopias({ detalle }) {
           <p className="metadatos-copia">
             {formatearTamano(copia.tamanioBytes)} · Modificado el {formatearFecha(copia.ultimaModificacion)}
           </p>
+          <div className="acciones-copia">
+            <button
+              type="button"
+              className="boton-secundario boton-papelera-copia"
+              onClick={() => onEliminarCopia(libro, copia)}
+              disabled={accionesBloqueadas}
+            >
+              Enviar a la Papelera
+            </button>
+          </div>
         </li>
       ))}
+      <li className="eliminar-todas-copias">
+        <div>
+          <strong>Retirar este libro de la biblioteca disponible</strong>
+          <p>Esta acción enviará sus {libro.numeroArchivos} copias físicas a la Papelera.</p>
+        </div>
+        <button
+          type="button"
+          className="boton-papelera-todas"
+          onClick={() => onEliminarTodas(libro, detalle.copias)}
+          disabled={accionesBloqueadas}
+        >
+          Enviar todas las copias a la Papelera
+        </button>
+      </li>
     </ul>
   )
 }
