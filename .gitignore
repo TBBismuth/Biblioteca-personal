@@ -1,0 +1,102 @@
+# ============================================================
+# BIBLIOTECA PERSONAL
+# Java / Spring Boot + React / Vite + Tauri
+# ============================================================
+
+
+# -------------------------
+# BASE DE DATOS PERSONAL
+# -------------------------
+
+Backend/data/
+
+*.mv.db
+*.trace.db
+
+
+# -------------------------
+# DOCUMENTACIÓN INTERNA
+# -------------------------
+
+Backend/QUERY_API_CHANGES.md
+Backend/RENAME_API_CHANGES.md
+Backend/SYNC_CHANGES.md
+Frontend/PROJECT_CONTEXT.md
+
+
+# -------------------------
+# JAVA / MAVEN
+# -------------------------
+
+*.class
+*.log
+
+Backend/target/
+**/target/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# VS Code
+.vscode/
+
+# Java crash logs
+hs_err_pid*
+replay_pid*
+
+
+# -------------------------
+# NODE / REACT / VITE
+# -------------------------
+
+Frontend/node_modules/
+**/node_modules/
+
+Frontend/dist/
+**/dist/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.env
+.env.*
+!.env.example
+
+
+# -------------------------
+# TAURI / RUST
+# -------------------------
+
+Frontend/src-tauri/target/
+
+# Generado por Tauri
+Frontend/src-tauri/gen/schemas/
+
+
+# -------------------------
+# SISTEMA OPERATIVO
+# -------------------------
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# -------------------------
+# TEMPORALES
+# -------------------------
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
