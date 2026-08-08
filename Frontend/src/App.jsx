@@ -4,11 +4,18 @@ import {
   guardarRuta,
   obtenerConfiguracion,
 } from './services/bibliotecaApi.js'
+import { prepararBackend } from './services/backendLifecycle.js'
 import { seleccionarCarpetaLibros } from './services/selectorCarpeta.js'
 import BibliotecaPage from './components/BibliotecaPage.jsx'
 import './App.css'
 
-const FASES_BLOQUEADAS = new Set(['cargando', 'seleccionando', 'guardando', 'escaneando'])
+const FASES_BLOQUEADAS = new Set([
+  'backend-iniciando',
+  'cargando',
+  'seleccionando',
+  'guardando',
+  'escaneando',
+])
 
 function mensajeError(error, operacion) {
   if (error?.message?.startsWith('No se puede contactar')) {
@@ -31,7 +38,7 @@ function mensajeError(error, operacion) {
 }
 
 function App() {
-  const [fase, setFase] = useState('cargando')
+  const [fase, setFase] = useState('backend-iniciando')
   const [rutaLibros, setRutaLibros] = useState('')
   const [error, setError] = useState('')
   const [operacionFallida, setOperacionFallida] = useState(null)
@@ -63,7 +70,29 @@ function App() {
   }, [])
 
   useEffect(() => {
-    cargarConfiguracion()
+    let desmontado = false
+
+    async function prepararAplicacion() {
+      setFase('backend-iniciando')
+      setError('')
+      try {
+        await prepararBackend()
+        if (!desmontado) {
+          await cargarConfiguracion()
+        }
+      } catch (errorInicio) {
+        if (!desmontado) {
+          setError(errorInicio.message || 'No se pudo iniciar el servicio interno.')
+          setOperacionFallida('backend')
+          setFase('backend-error')
+        }
+      }
+    }
+
+    prepararAplicacion()
+    return () => {
+      desmontado = true
+    }
   }, [cargarConfiguracion])
 
   const ejecutarEscaneo = async () => {
@@ -156,6 +185,25 @@ function App() {
     <main className="app-shell" aria-busy={bloqueada}>
       <section className="panel">
         <h1>Biblioteca personal</h1>
+
+        {fase === 'backend-iniciando' && (
+          <>
+            <p className="estado" role="status">Iniciando aplicación...</p>
+            <p className="explicacion-ruta">Preparando la biblioteca.</p>
+          </>
+        )}
+
+        {fase === 'backend-error' && (
+          <>
+            <p className="aviso-ruta" role="alert">
+              No se pudo iniciar el servicio interno de Biblioteca personal.
+            </p>
+            <p className="explicacion-ruta">{error}</p>
+            <p className="explicacion-ruta">
+              Cierra la aplicación, corrige el problema indicado y vuelve a abrirla.
+            </p>
+          </>
+        )}
 
         {fase === 'cargando' && <p className="estado">Cargando configuración...</p>}
 

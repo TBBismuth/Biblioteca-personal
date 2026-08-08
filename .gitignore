@@ -23,6 +23,8 @@ Backend/RENAME_API_CHANGES.md
 Backend/SYNC_CHANGES.md
 Frontend/PROJECT_CONTEXT.md
 DELETE_API_CHANGES.md
+PACKAGING_PREP.md
+TAURI_BACKEND_LIFECYCLE.md
 
 
 # -------------------------

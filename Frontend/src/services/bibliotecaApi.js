@@ -1,10 +1,27 @@
-const API_BASE = '/api'
+let backendBaseUrl = ''
+
+export function configurarBackendBaseUrl(baseUrl = '') {
+  if (!baseUrl) {
+    backendBaseUrl = ''
+    return
+  }
+
+  const url = new URL(baseUrl)
+  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.pathname !== '/') {
+    throw new Error('El servicio interno devolvió una dirección no válida.')
+  }
+  backendBaseUrl = url.origin
+}
+
+function apiUrl(ruta) {
+  return `${backendBaseUrl}/api${ruta}`
+}
 
 async function solicitar(ruta, opciones) {
   let respuesta
 
   try {
-    respuesta = await fetch(`${API_BASE}${ruta}`, opciones)
+    respuesta = await fetch(apiUrl(ruta), opciones)
   } catch {
     throw new Error('No se puede contactar con el backend. Comprueba que está iniciado.')
   }
