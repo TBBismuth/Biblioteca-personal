@@ -25,6 +25,7 @@ Frontend/PROJECT_CONTEXT.md
 DELETE_API_CHANGES.md
 PACKAGING_PREP.md
 TAURI_BACKEND_LIFECYCLE.md
+PACKAGING_RUNTIME.md
 
 
 # -------------------------
@@ -80,6 +81,11 @@ pnpm-debug.log*
 # -------------------------
 
 Frontend/src-tauri/target/
+
+# Resources regenerables para el empaquetado de escritorio
+Frontend/src-tauri/resources/runtime/*
+!Frontend/src-tauri/resources/runtime/.gitkeep
+Frontend/src-tauri/resources/backend/Biblioteca_personal.jar
 
 # Generado por Tauri
 Frontend/src-tauri/gen/schemas/

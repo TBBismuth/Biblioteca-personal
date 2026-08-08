@@ -68,6 +68,41 @@ struct LaunchConfiguration {
     packaged: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BuildMode {
+    Debug,
+    Release,
+}
+
+impl BuildMode {
+    fn current() -> Self {
+        if cfg!(debug_assertions) {
+            Self::Debug
+        } else {
+            Self::Release
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum JavaStrategy {
+    SystemPath,
+    Bundled(PathBuf),
+}
+
+fn java_strategy(mode: BuildMode, resource_dir: &Path) -> JavaStrategy {
+    match mode {
+        BuildMode::Debug => JavaStrategy::SystemPath,
+        BuildMode::Release => {
+            JavaStrategy::Bundled(resource_dir.join("runtime").join("bin").join("java.exe"))
+        }
+    }
+}
+
+fn bundled_backend_jar(resource_dir: &Path) -> PathBuf {
+    resource_dir.join("backend").join("Biblioteca_personal.jar")
+}
+
 enum LaunchFailure {
     Retryable(String),
     Permanent(String),
@@ -412,7 +447,7 @@ pub fn get_backend_info(manager: &BackendManager) -> Result<BackendInfo, String>
 }
 
 fn prepare_launch_configuration(app: &AppHandle) -> Result<LaunchConfiguration, String> {
-    if cfg!(debug_assertions) {
+    if BuildMode::current() == BuildMode::Debug {
         let backend_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("..")
@@ -452,27 +487,39 @@ fn prepare_launch_configuration(app: &AppHandle) -> Result<LaunchConfiguration, 
             .map_err(|_| {
                 "No se pudieron preparar las carpetas de datos de la aplicación.".to_string()
             })?;
-        let jar = app
+        let resource_dir = app
             .path()
             .resource_dir()
-            .map_err(|_| "No se pudo determinar la carpeta de recursos.".to_string())?
-            .join("backend")
-            .join("Biblioteca_personal.jar");
-        if !jar.is_file() {
-            return Err("No se encontró el servicio interno empaquetado.".to_string());
-        }
-        let jar = jar
-            .canonicalize()
-            .map_err(|_| "No se pudo resolver el servicio interno empaquetado.".to_string())?;
+            .map_err(|_| "No se pudo determinar la carpeta de recursos.".to_string())?;
+        let java = match java_strategy(BuildMode::Release, &resource_dir) {
+            JavaStrategy::Bundled(path) => path,
+            JavaStrategy::SystemPath => unreachable!("release nunca utiliza Java del sistema"),
+        };
+        let jar = bundled_backend_jar(&resource_dir);
+        validate_bundled_resources(&java, &jar)?;
         Ok(LaunchConfiguration {
-            java: resolve_java_executable()?,
-            jar,
+            java: java.canonicalize().map_err(|_| {
+                "No se pudo resolver el runtime Java incluido con la aplicación.".to_string()
+            })?,
+            jar: jar
+                .canonicalize()
+                .map_err(|_| "No se pudo resolver el servicio interno incluido.".to_string())?,
             working_dir: app_data,
             database_url: database_url_from_path(&data_dir.join("biblioteca_personal"))?,
             logs_dir,
             packaged: true,
         })
     }
+}
+
+fn validate_bundled_resources(java: &Path, jar: &Path) -> Result<(), String> {
+    if !java.is_file() {
+        return Err("No se encontró el runtime Java incluido con la aplicación.".to_string());
+    }
+    if !jar.is_file() {
+        return Err("No se encontró el servicio interno incluido con la aplicación.".to_string());
+    }
+    Ok(())
 }
 
 fn resolve_java_executable() -> Result<PathBuf, String> {
@@ -813,5 +860,47 @@ mod tests {
             external_process_path(Path::new(r"\\?\UNC\servidor\recurso\archivo.jar")),
             PathBuf::from(r"\\servidor\recurso\archivo.jar")
         );
+    }
+
+    #[test]
+    fn debug_conserva_la_estrategia_de_java_del_sistema() {
+        assert_eq!(
+            java_strategy(BuildMode::Debug, Path::new("recursos-ignorados")),
+            JavaStrategy::SystemPath
+        );
+    }
+
+    #[test]
+    fn release_elige_exclusivamente_java_y_jar_de_resources() {
+        let resources = Path::new(r"C:\Aplicacion\resources");
+        assert_eq!(
+            java_strategy(BuildMode::Release, resources),
+            JavaStrategy::Bundled(resources.join("runtime").join("bin").join("java.exe"))
+        );
+        assert_eq!(
+            bundled_backend_jar(resources),
+            resources.join("backend").join("Biblioteca_personal.jar")
+        );
+    }
+
+    #[test]
+    fn validacion_release_exige_java_y_jar_presentes() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = env::temp_dir().join(format!("biblioteca-runtime-test-{unique}"));
+        let java = root.join("runtime").join("bin").join("java.exe");
+        let jar = root.join("backend").join("Biblioteca_personal.jar");
+
+        assert!(validate_bundled_resources(&java, &jar).is_err());
+        fs::create_dir_all(java.parent().unwrap()).unwrap();
+        fs::create_dir_all(jar.parent().unwrap()).unwrap();
+        File::create(&java).unwrap();
+        assert!(validate_bundled_resources(&java, &jar).is_err());
+        File::create(&jar).unwrap();
+        assert!(validate_bundled_resources(&java, &jar).is_ok());
+
+        fs::remove_dir_all(root).unwrap();
     }
 }

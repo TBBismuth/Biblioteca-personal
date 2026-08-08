@@ -28,6 +28,10 @@
   },
   "bundle": {
     "active": false,
-    "targets": "all"
+    "targets": "all",
+    "resources": {
+      "resources/backend/": "backend/",
+      "resources/runtime/": "runtime/"
+    }
   }
 }
